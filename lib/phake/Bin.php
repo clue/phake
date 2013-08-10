@@ -19,7 +19,7 @@ class Bin
             $action     = 'invoke';
             $task_names = array('default');
             $trace      = false;
-            $runfile    = false;
+            $runfile    = getcwd();
 
             array_shift($args);
             $parser = new OptionParser($args);
@@ -58,20 +58,19 @@ class Bin
                 $task_names = $cli_task_names;
             }
 
+
+            $builder = builder();
+            /* @var $builder Builder */
+
             //
             // Locate runfile
-            if (!$runfile) {
-                $runfile = resolve_runfile(getcwd());
-                $directory = dirname($runfile);
-
-                if (!@chdir($directory)) {
-                    throw new Exception("Couldn't change to directory '$directory'");
-                } else {
-                    echo "(in $directory)\n";
-                }
+            if (is_dir($runfile)) {
+                $runfile = $builder->resolve_runfile($runfile);
             }
 
-            load_runfile($runfile);
+            echo "(run $runfile)\n";
+
+            $builder->load_runfile($runfile);
 
             //
             // Go, go, go
@@ -99,9 +98,22 @@ class Bin
             }
 
         } catch (TaskNotFoundException $tnfe) {
-            fatal($tnfe, "Don't know how to build task '$task_name'\n");
+            $this->fatal($tnfe, "Don't know how to build task '$task_name'\n", $trace);
         } catch (Exception $e) {
-            fatal($e);
+            $this->fatal($e, null, $trace);
         }
+    }
+
+    private function fatal($exception, $message = null, $trace = false) {
+        echo "aborted!\n";
+        if (!$message) $message = $exception->getMessage();
+        if (!$message) $message = get_class($exception);
+        write(red($message), "\n\n");
+        if ($trace) {
+            echo $exception->getTraceAsString() . "\n";
+        } else {
+            echo "(See full trace by running task with --trace)\n";
+        }
+        die(1);
     }
 }
